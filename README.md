@@ -52,6 +52,11 @@ the worker refuses before mutations. Cancellation starts no supervisor or route 
 For agent-operated privilege, launch connect only in an armed tmux pane in the
 agent's current window. No sudo or privileged operation runs in offline checks.
 
+Logs live in `$XDG_STATE_HOME/psiphon/psiphon.log` (default
+`~/.local/state/psiphon/`). Before a new connection, a 2 MiB log rotates through
+four numbered prior logs (`.1` to `.4`), bounding retained log storage to about
+10 MiB. The oldest retained log is discarded on the next rotation.
+
 **Escalation trust:** sudo approves this local Python interpreter and installed
 package, including an editable checkout if that is what you installed. They may
 be user-writable. `-I` avoids ambient PYTHONPATH/user-site, but does not make that

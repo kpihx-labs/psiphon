@@ -50,6 +50,8 @@ RUNTIME_DIR = _runtime / f"psiphon-{os.getuid()}"
 ACTIVE_CONFIG = CONFIG_DIR / "psiphon.config"
 PID_FILE = RUNTIME_DIR / "psiphon.pid"
 LOG_FILE = STATE_DIR / "psiphon.log"
+LOG_MAX_BYTES = 2 * 1024 * 1024
+LOG_BACKUPS = 4
 SESSION_FILE = RUNTIME_DIR / "session.json"
 DATA_DIR = CACHE_DIR / "core"  # signed server-list cache and tunnel-core datastore
 

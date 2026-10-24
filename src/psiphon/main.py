@@ -113,6 +113,23 @@ def notice_state(offset: int = 0) -> dict[str, Any]:
     return state
 
 
+def rotate_log() -> None:
+    """Keep a bounded local history before opening a new connection log."""
+    if (
+        not config.LOG_FILE.exists()
+        or config.LOG_FILE.stat().st_size < config.LOG_MAX_BYTES
+    ):
+        return
+    oldest = config.LOG_FILE.with_name(f"{config.LOG_FILE.name}.{config.LOG_BACKUPS}")
+    if oldest.exists():
+        oldest.unlink()
+    for number in range(config.LOG_BACKUPS - 1, 0, -1):
+        source = config.LOG_FILE.with_name(f"{config.LOG_FILE.name}.{number}")
+        if source.exists():
+            source.replace(source.with_name(f"{config.LOG_FILE.name}.{number + 1}"))
+    config.LOG_FILE.replace(config.LOG_FILE.with_name(f"{config.LOG_FILE.name}.1"))
+
+
 def process_identity(pid: int) -> dict[str, str]:
     proc = Path(f"/proc/{pid}")
     stat = (proc / "stat").read_text().rsplit(") ", 1)[1].split()
@@ -170,7 +187,8 @@ def connected(region: str, proxy: bool, interface: str | None, wait_s: float):
         elif interface:
             uplink = interface
         engine.write_config(region, proxy)
-        # Create a private log before the worker opens it; never truncate history.
+        # Create a private log before the worker opens it; preserve bounded history.
+        rotate_log()
         fd = os.open(
             config.LOG_FILE,
             os.O_APPEND | os.O_CREAT | os.O_WRONLY | os.O_NOFOLLOW,

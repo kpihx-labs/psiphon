@@ -56,6 +56,19 @@ def test_version_without_subcommand():
     assert main.version("psiphon") in result.output
 
 
+def test_log_rotation_keeps_bounded_history(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "LOG_FILE", tmp_path / "psiphon.log")
+    monkeypatch.setattr(config, "LOG_MAX_BYTES", 2)
+    monkeypatch.setattr(config, "LOG_BACKUPS", 2)
+    config.LOG_FILE.write_text("new")
+    config.LOG_FILE.with_name("psiphon.log.1").write_text("old")
+    config.LOG_FILE.with_name("psiphon.log.2").write_text("oldest")
+    main.rotate_log()
+    assert config.LOG_FILE.with_name("psiphon.log.1").read_text() == "new"
+    assert config.LOG_FILE.with_name("psiphon.log.2").read_text() == "old"
+    assert not config.LOG_FILE.exists()
+
+
 @pytest.mark.parametrize("command", ["connect", "doctor", "status", "bench"])
 def test_every_public_option_has_short_alias(command):
     import typer.main

@@ -1,10 +1,9 @@
 # Changelog
 
-## [2.0.1] - 2026-10-24
+## [2.0.2] - 2026-10-24
 
 - Add targeted `make purge` and a Rich table/JSON active-route status view.
-
-## Unreleased
+- Bound Psiphon logs to the current 2 MiB file plus four numbered rotations.
 
 ## [2.0.0] - 2026-10-24
 
