@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.0.1] - 2026-10-24
+
+- Add targeted `make purge` and a Rich table/JSON active-route status view.
+
 ## Unreleased
 
 ## [2.0.0] - 2026-10-24

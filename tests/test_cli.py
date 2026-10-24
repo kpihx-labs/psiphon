@@ -53,7 +53,7 @@ def test_help_and_short_help():
 def test_version_without_subcommand():
     result = runner.invoke(main.app, ["-v"])
     assert result.exit_code == 0, result.output
-    assert "2.0.0" in result.output
+    assert main.version("psiphon") in result.output
 
 
 @pytest.mark.parametrize("command", ["connect", "doctor", "status", "bench"])
@@ -282,7 +282,7 @@ def test_status_optional_measurements(monkeypatch):
         )
     result = runner.invoke(main.app, ["status", "-p", "-g", "-s", "-n", "1"])
     assert result.exit_code == 0, result.output
-    assert "download" in result.output and "upload" in result.output
+    assert "Download" in result.output and "Upload" in result.output
     geo.assert_called_once_with("192.0.2.1", main.proxy_url(True))
 
 

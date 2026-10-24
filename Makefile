@@ -11,7 +11,7 @@ PYTHON := $(UV) run --offline --no-sync python
 
 PY_FILES := $(wildcard $(PKG_DIR)/*.py)
 
-.PHONY: help sync check smoke test-live uv-install uv-link uv-uninstall build publish uv-build uv-publish push push-tags status log release
+.PHONY: help sync check smoke test-live uv-install uv-link uv-uninstall build publish uv-build uv-publish push push-tags status log release purge
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
@@ -86,3 +86,12 @@ log:  ## Last 10 commits oneline
 	@git log --oneline -10
 
 release: check push uv-publish push-tags  ## Full release: check → push → publish → push tags
+
+purge:  ## Remove installed Psiphon tool and all live XDG state; retain source checkout
+	@set -e; \
+	psiphon disconnect || true; \
+	for path in "$$HOME/.config/psiphon" "$$HOME/.cache/psiphon" "$$HOME/.local/state/psiphon" "$$HOME/.local/share/psiphon" "$$HOME/.local/share/uv/tools/psiphon" "$$HOME/.local/bin/psiphon" "$$HOME/.config/systemd/user/psiphon.service"; do \
+		if test -e "$$path"; then printf '%s\n' "purging $$path"; rm -r "$$path"; fi; \
+	done; \
+	$(UV) tool uninstall psiphon || printf '%s\n' 'psiphon uv tool was not installed'; \
+	printf '%s\n' 'Psiphon live state removed; source checkout remains intact.'

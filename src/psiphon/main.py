@@ -17,6 +17,7 @@ from typing import Annotated, Any
 import requests
 import typer
 from rich.console import Console
+from rich.table import Table
 
 from psiphon import config, engine, network, routing
 from psiphon.supervisor import RollbackError, Supervisor
@@ -341,12 +342,7 @@ def status(
         "-p",
         help="Measure explicit local proxy instead of active OS route",
     ),
-    geo: bool = typer.Option(
-        False,
-        "--geo",
-        "-g",
-        help="Query third-party GeoIP (not physical-location proof)",
-    ),
+    geo: bool = typer.Option(False, "--geo", "-g", help="Query third-party GeoIP"),
     download: bool = typer.Option(False, "--download", "-d"),
     upload: bool = typer.Option(False, "--upload", "-u"),
     speed: bool = typer.Option(
@@ -355,17 +351,61 @@ def status(
     seconds: float = typer.Option(
         config.BENCH_DEFAULT_S, "--seconds", "-n", min=1, max=60
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="table or json"),
 ) -> None:
     """Inspect the current route and HTTPS egress, even without Psiphon running."""
+    if output_format not in ("table", "json"):
+        raise typer.BadParameter("format must be table or json")
     route = routing.active_route()
-    console.print("Active OS route: " + json.dumps(route), markup=False)
     transport = proxy_url(proxy)
     address = network.public_ip(transport)
-    console.print(
-        f"{'Explicit proxy' if proxy else 'Active route'} HTTPS IP: {address}"
-    )
+    location = {}
     if geo:
-        console.print(network.geo(address, transport))
+        try:
+            location = network.geo(address, transport)
+        except (ConnectionError, requests.RequestException):
+            location = {}
+    state = {}
+    if config.SESSION_FILE.exists():
+        try:
+            state = json.loads(config.SESSION_FILE.read_text())
+        except (OSError, ValueError):
+            state = {"state": "unreadable"}
+    payload: dict[str, Any] = {
+        "mode": "explicit-proxy" if proxy else "active-route",
+        "interface": route.get("dev", ""),
+        "local_ipv4": route.get("prefsrc", route.get("src", "")),
+        "gateway": route.get("gateway", ""),
+        "public_ipv4": address,
+        "location": location,
+        "session": state,
+    }
+    if output_format == "json":
+        console.print_json(json.dumps(payload))
+    else:
+        table = Table(title="Current IPv4 Network Status", show_header=False)
+        table.add_column("Property", style="cyan")
+        table.add_column("Value")
+        table.add_row("Mode", payload["mode"])
+        table.add_row("Active interface", payload["interface"] or "not reported")
+        table.add_row("Local IPv4", payload["local_ipv4"] or "not reported")
+        table.add_row("Gateway", payload["gateway"] or "point-to-point or not reported")
+        table.add_row("Public IPv4", address)
+        country = " ".join(
+            str(value)
+            for value in (location.get("country", ""), location.get("country_code", ""))
+            if value
+        )
+        table.add_row(
+            "Location (indicative)",
+            ", ".join(
+                value for value in (country, str(location.get("city", ""))) if value
+            )
+            or ("unavailable" if geo else "not requested; use -g"),
+        )
+        table.add_row("Requested region", str(state.get("region", "not connected")))
+        table.add_row("Tunnel mode", str(state.get("mode", "not connected")))
+        console.print(table)
     for enabled, name, measure in (
         (download or speed, "download", network.download),
         (upload or speed, "upload", network.upload),
@@ -373,7 +413,7 @@ def status(
         if enabled:
             result = measure(seconds, transport)
             console.print(
-                f"{name}: {result.mbps:.3f} Mbps; {result.bytes_received} bytes / {result.elapsed_s:.3f}s"
+                f"[green]{name.title()}:[/green] {result.mbps:.2f} Mbps · {result.bytes_received / 1_000_000:.1f} MB in {result.elapsed_s:.1f}s"
             )
 
 
