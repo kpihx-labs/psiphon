@@ -1,0 +1,40 @@
+[project]
+name = "psiphon"
+version = "2.0.0"
+description = "Foreground native Psiphon packet tunnel and explicit local proxy for Linux"
+readme = "README.md"
+license = "BUSL-1.1"
+license-files = ["LICENSE"]
+authors = [
+    { name = "KpihX", email = "kapoivha@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "requests>=2.34.2",
+    "rich>=15.0.0",
+    "typer>=0.27.3",
+]
+
+[project.scripts]
+psiphon = "psiphon.main:app"
+
+[project.urls]
+Repository = "https://github.com/kpihx-labs/psiphon"
+GitLab = "https://gitlab.com/kpihx-labs/vpns/psiphon"
+Issues = "https://github.com/kpihx-labs/psiphon/issues"
+
+[build-system]
+requires = ["uv_build>=0.10.3,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+markers = ["live: explicit opt-in network benchmark, never run by make check"]
+
+[tool.psiphon-contract]
+schema_version = "psiphon.contract.v2"
+contract_version = "2.0.0"

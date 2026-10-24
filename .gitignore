@@ -1,0 +1,17 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Downloaded upstream runtime and private/scratch state are not source artefacts.
+bin/
+tmp/
+.env
+.ruff_cache/
+/AGENTS.md
