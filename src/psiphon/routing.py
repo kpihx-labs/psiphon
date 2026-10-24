@@ -1,5 +1,6 @@
 """Conservative native TUN routing, with only session-scoped owned resources."""
 
+import ipaddress
 import json
 import os
 import re
@@ -87,6 +88,37 @@ def check_user_binding(interface: str) -> None:
         ) from exc
 
 
+def connected_bridge_routes() -> list[dict]:
+    """Keep directly-connected container/VM bridges local, not RFC1918 at large.
+
+    Only existing unicast scope-link IPv4 routes on actual Linux bridges qualify.
+    Never copy a default route, gateway, physical uplink or arbitrary policy table.
+    """
+    links = json.loads(run(["ip", "-j", "-d", "link", "show"]))
+    bridges = {
+        link["ifname"]
+        for link in links
+        if link.get("linkinfo", {}).get("info_kind") == "bridge"
+    }
+    routes = json.loads(
+        run(["ip", "-j", "-4", "route", "show", "table", "main", "scope", "link"])
+    )
+    selected = []
+    for route in routes:
+        if (
+            route.get("dev") not in bridges
+            or route.get("gateway")
+            or route.get("type", "unicast") != "unicast"
+            # iproute2 omits "scope" in JSON when the scope=link filter is used.
+            or route.get("scope", "link") != "link"
+        ):
+            continue
+        network = ipaddress.ip_network(route.get("dst", "0.0.0.0/0"), strict=False)
+        if network.version == 4 and network.prefixlen:
+            selected.append({"dst": str(network), "dev": route["dev"]})
+    return selected
+
+
 def configure(owner, uplink: str, uid: int | None = None) -> None:
     tun = config.TUN_NAME
     owner.apply(
@@ -124,6 +156,21 @@ def configure(owner, uplink: str, uid: int | None = None) -> None:
             ["ip", family, "route", "add", *route, "table", config.ROUTE_TABLE],
             ["ip", family, "route", "del", *route, "table", config.ROUTE_TABLE],
         )
+        if family == "-4":
+            for local in connected_bridge_routes():
+                direct = [
+                    local["dst"],
+                    "dev",
+                    local["dev"],
+                    "scope",
+                    "link",
+                    "table",
+                    config.ROUTE_TABLE,
+                ]
+                owner.apply(
+                    ["ip", "-4", "route", "add", *direct],
+                    ["ip", "-4", "route", "del", *direct],
+                )
         # Explicitly uplink-bound IPv4 sockets bypass (required by ConsoleClient).
         # IPv6 is blocked for all nonlocal traffic for this session.
         if family == "-4":

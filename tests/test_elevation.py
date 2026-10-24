@@ -222,6 +222,7 @@ def test_protocol_pipe_is_required_before_any_native_mutation(tmp_path, monkeypa
 def test_tun_is_assigned_to_caller_not_supervisor(monkeypatch):
     monkeypatch.setattr(Path, "read_text", lambda path: "1")
     monkeypatch.setattr(routing, "run", lambda command: "")
+    monkeypatch.setattr(routing, "connected_bridge_routes", list)
     owner = Mock()
     routing.configure(owner, "eth0", uid=12345)
     assert owner.apply.call_args_list[0].args[0][-2:] == ["user", "12345"]

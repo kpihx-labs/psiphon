@@ -153,3 +153,15 @@ Keep the same metadata in `pyproject.toml` under a dedicated tool/config section
   configured but their resolver packets follow tunnel policy; private campus or
   Tailscale names may be unavailable during the connection. Persistent resolver
   configuration is never edited. Native coverage and rechecks are in BENCHMARKS.md.
+
+### 2.0.3 connected bridge routing amendment
+
+- At connection time, discover actual Linux bridges and their directly connected
+  scope-link IPv4 routes in main. Copy only nondefault unicast prefixes without
+  gateways into the owned VPN table. Do not copy physical uplink routes or exempt
+  entire RFC1918 ranges.
+- Every copied route has an inverse transaction entry. Main routes, bridge MACs
+  and port membership remain untouched. Bridges created mid-session require
+  reconnect; no permanent network watcher is installed.
+- Existing IPv6 blocking and Internet TUN policy remain unchanged. This local IPC
+  fix does not promise compatibility with arbitrary third-party kill switches.

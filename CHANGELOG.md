@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.3] - 2026-10-24
+
+- Preserve existing directly connected Linux bridge IPv4 prefixes in the owned
+  VPN routing table so local Docker/VM APIs do not go to the Internet tunnel.
+- Discover bridge kinds and connected routes rather than hardcoding Docker names
+  or bypassing all private ranges. No physical default/gateway route is copied.
+- Reverse each added route using the existing supervisor transaction on disconnect.
+- Cover iproute2's real filtered JSON shape, which can omit `scope`, in regressions.
+- Live DE validation: Internet egress remained tunneled; Docker lookup selected
+  br-cf5f99a5c5a3 in table 18081; xsearch Unix and TCP inventories/live search worked.
+  Brave rate limiting remained an explicit upstream degradation, not backend failure.
+
 ## [2.0.2] - 2026-10-24
 
 - Add targeted `make purge` and a Rich table/JSON active-route status view.

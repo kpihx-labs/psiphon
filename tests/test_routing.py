@@ -118,6 +118,7 @@ def test_unsupported_resolver_is_refused(monkeypatch):
 def routing_plan(monkeypatch):
     monkeypatch.setattr(Path, "read_text", lambda path: "1\n")
     monkeypatch.setattr(routing, "run", lambda command: "")
+    monkeypatch.setattr(routing, "connected_bridge_routes", list)
     owner = Mock()
     routing.configure(owner, "eth0")
     return [call.args for call in owner.apply.call_args_list]
@@ -160,6 +161,7 @@ def test_routing_plan_covers_dns_ipv6_and_engine_bypass(monkeypatch):
 
 def test_existing_dns_domains_are_restored_verbatim(monkeypatch):
     monkeypatch.setattr(Path, "read_text", lambda path: "2\n")
+    monkeypatch.setattr(routing, "connected_bridge_routes", list)
     monkeypatch.setattr(
         routing,
         "run",
@@ -289,3 +291,62 @@ def test_engine_stopped_on_context_exit(tmp_path):
         )
         assert owner.request("poll") is None
     assert not Path(f"/proc/{pid}").exists()
+
+
+def test_only_direct_bridge_prefixes_bypass_tun(monkeypatch):
+    links = [
+        {"ifname": "br-test", "linkinfo": {"info_kind": "bridge"}},
+        {"ifname": "wifi", "linkinfo": {"info_kind": "ether"}},
+    ]
+    routes = [
+        # Real `ip -j route show ... scope link` omits the scope property.
+        {"dst": "172.18.0.0/16", "dev": "br-test"},
+        {"dst": "192.168.1.0/24", "dev": "wifi", "scope": "link"},
+        {
+            "dst": "default",
+            "dev": "br-test",
+            "gateway": "172.18.0.1",
+            "scope": "global",
+        },
+        {
+            "dst": "10.0.0.0/8",
+            "dev": "br-test",
+            "gateway": "172.18.0.1",
+            "scope": "link",
+        },
+    ]
+    monkeypatch.setattr(
+        routing,
+        "run",
+        lambda command: json.dumps(
+            links if "link" in command and "-d" in command else routes
+        ),
+    )
+    assert routing.connected_bridge_routes() == [
+        {"dst": "172.18.0.0/16", "dev": "br-test"}
+    ]
+
+
+def test_bridge_route_mutation_is_owned_and_reversed(monkeypatch):
+    routing_plan(monkeypatch)
+    monkeypatch.setattr(
+        routing,
+        "connected_bridge_routes",
+        lambda: [{"dst": "172.18.0.0/16", "dev": "br-test"}],
+    )
+    owner = Mock()
+    routing.configure(owner, "eth0")
+    calls = [call.args for call in owner.apply.call_args_list]
+    direct = [
+        "172.18.0.0/16",
+        "dev",
+        "br-test",
+        "scope",
+        "link",
+        "table",
+        config.ROUTE_TABLE,
+    ]
+    assert (
+        ["ip", "-4", "route", "add", *direct],
+        ["ip", "-4", "route", "del", *direct],
+    ) in calls

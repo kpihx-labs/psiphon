@@ -115,6 +115,22 @@ Tailscale/campus DNS present. Sixteen produced verified packet-tunnel downloads;
 all sessions restored the original routes and per-link DNS domains. See
 `BENCHMARKS.md` for failures and qualifications.
 
+### 2.0.3: local container/VM bridge exception
+
+The broad nonlocal IPv4 statement above now has one explicit exception: existing
+directly connected IPv4 prefixes on Linux bridges stay on those bridges. Their
+routes are copied into the temporary VPN table, not changed in the main table,
+and removed in reverse rollback. This keeps Docker/VM local APIs reachable while
+Internet traffic still selects the TUN. It is not a blanket RFC1918, WiFi LAN or
+physical-uplink bypass. New bridges created after connection are not automatically
+watched; reconnect when adding network topology during a session.
+
+The failure was reproduced with Docker traffic selecting psiphon0. After the fix,
+a live Germany session kept the container path local and returned the xsearch
+engine inventory and real search results over both Unix IPC and TCP. iproute2
+omits the `scope` field in some filtered JSON results; the regression fixture
+uses this observed shape, not an assumed schema.
+
 Each successful mutation has an inverse. The supervisor owns the engine and
 observes a private pipe: normal exit, startup failure, SIGTERM, Ctrl-C or controller
 SIGKILL closes it, stops/reaps the engine, and rolls back in reverse order. Cleanup
